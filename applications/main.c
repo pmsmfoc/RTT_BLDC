@@ -16,7 +16,6 @@
 #include "bldc_tim.h"
 #include "bldc.h"
 #include "pid.h"
-float*user_setpoint = (float*)(&g_speed_pid.SetPoint);    /* 设置目标值指针 指向存放目标值地址 */
 int main(void)
 {
 
@@ -27,7 +26,8 @@ int main(void)
     g_bldc_motor1.dir = CW;
     g_bldc_motor1.run_flag = RUN;
     start_motor1();
-    *user_setpoint = 1200;
+
+    g_speed_pid.SetPoint = 1000;
     while (1)
     {
         rt_kprintf("motor speed is %d\r\n",g_bldc_motor1.speed);
