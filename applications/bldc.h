@@ -106,8 +106,8 @@ extern _bldc_obj g_bldc_motor1;
 #define H_PWM_L_PWM
 #endif
 
-#define CCW                         (1)                 /* ��ʱ�� */
-#define CW                          (2)                 /* ˳ʱ�� */
+#define CCW                         (1)                 /* 逆时针 */
+#define CW                          (2)                 /* 顺时针 */
 #define HALL_ERROR                  (0xF0)              /* ���������־ */
 #define RUN                         (1)                 /* ����˶���־ */
 #define STOP                        (0)                 /* ���ͣ����־ */

@@ -76,6 +76,7 @@ extern TIM_HandleTypeDef g_atimx_handle;                                        
 #define BTIM_TIMX_INT_CLK_ENABLE()              do{ __HAL_RCC_TIM6_CLK_ENABLE(); }while(0)  /* TIM6 ʱ��ʹ�� */
 
 extern TIM_HandleTypeDef g_atimx_handle;                    /* ��ʱ��x��� */
+extern int32_t motor_pwm_s;
 /******************************************************************************************/
 
 void atim_timx_oc_chy_init(uint16_t arr, uint16_t psc);     /* �߼���ʱ�� PWM��ʼ������ */

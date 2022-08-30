@@ -1,0 +1,141 @@
+/*
+ * Copyright (c) 2006-2021, RT-Thread Development Team
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Change Logs:
+ * Date           Author       Notes
+ * 2022-08-28     20688       the first version
+ */
+
+#include "uart.h"
+
+rt_device_t uart4_dev = RT_NULL;
+rt_thread_t uart4_rx_td = RT_NULL;
+rt_uint32_t rx_len = 0;
+
+
+struct rt_semaphore sem1;
+extern _bldc_obj g_bldc_motor1;
+rt_int8_t uart4_init(void)
+{
+    rt_int8_t ret = 0;
+    /*查找设备*/
+    uart4_dev = rt_device_find("uart4");
+    if(uart4_dev == RT_NULL)
+    {
+        rt_kprintf("uart4 not find...\r\n");
+        return -RT_ERROR;
+    }
+    /*打开设备*/
+    ret = rt_device_open(uart4_dev,RT_DEVICE_OFLAG_RDWR|RT_DEVICE_FLAG_DMA_RX);
+    if(ret < 0)
+    {
+        rt_kprintf("uart4 not open...\r\n");
+        return ret;
+    }
+    /*配置串口参数*/
+    struct serial_configure serial_cfg = RT_SERIAL_CONFIG_DEFAULT;
+    rt_device_control(uart4_dev,RT_DEVICE_CTRL_CONFIG,(void*)&serial_cfg);
+    /*设置uart4的接收回调函数*/
+    rt_device_set_rx_indicate(uart4_dev,uart4_rx_callback);
+    rt_sem_init(&sem1,"sem1",0,RT_IPC_FLAG_FIFO);
+    return RT_EOK;
+}
+rt_err_t uart4_rx_callback(rt_device_t dev,rt_size_t size)
+{
+    rt_sem_release(&sem1);
+    rx_len = size;
+    return RT_EOK;
+}
+
+void uart4_td_entry(void *parameter)
+{
+    //cJSON *Proportion= RT_NULL;
+    //cJSON *Integral = RT_NULL;
+    //cJSON *Derivative = RT_NULL;
+    cJSON RunFlag;
+    cJSON Dir;
+    cJSON Speed;
+
+    cJSON *cJSON_Buf = RT_NULL;
+    char *str = RT_NULL;
+    rt_uint8_t len = 0;
+    char buffer[64];
+    char *dynamic_buf = RT_NULL;
+    while(1)
+    {
+        /*获取信号量*/
+        rt_sem_take(&sem1,RT_WAITING_FOREVER);
+        /*读取DMA接收到的数据*/
+        len = rt_device_read(uart4_dev,0,buffer,rx_len);
+        /*申请内存*/
+        dynamic_buf = rt_malloc(sizeof(char)*len);
+        /*copy数据到申请的内存中*/
+        memcpy(dynamic_buf,buffer,len);
+        /*解析*/
+        cJSON_Buf = cJSON_Parse(dynamic_buf);
+
+
+        if(cJSON_Buf == RT_NULL)
+            rt_kprintf("cJSON prase fail.\r\n");
+        else
+        {
+            /*获取比例系数*/
+            //Proportion = cJSON_GetObjectItem(cJSON_Buf,"p");
+            /*获取积分系数*/
+            //Integral = cJSON_GetObjectItem(cJSON_Buf,"i");
+            /*获取微分系数*/
+            //Derivative = cJSON_GetObjectItem(cJSON_Buf,"d");
+
+            /*获取启停标志位*/
+            RunFlag = *cJSON_GetObjectItem(cJSON_Buf, "runflag");
+            /*获取转向标志位*/
+            Dir = *cJSON_GetObjectItem(cJSON_Buf, "dir");
+            /*获取电机转速*/
+            Speed = *cJSON_GetObjectItem(cJSON_Buf, "speed");
+            if(Speed.valueint >= 4000)
+            {
+                Speed.valueint = 4000;
+            }
+            /*写入参数*/
+            g_bldc_motor1.run_flag = RunFlag.valueint;
+            if(g_bldc_motor1.run_flag != RUN)
+            {
+                /*清楚电机状态并关闭电机*/
+                pid_init();
+                stop_motor1();
+                g_bldc_motor1.speed = 0;
+                motor_pwm_s = 0;
+                g_bldc_motor1.pwm_duty = 0;
+            }
+            else
+            {
+                /*电机为启动状态*/
+                if(Dir.valueint != g_bldc_motor1.dir)
+                {
+                    /*转向发生改变*/
+                    pid_init();             //初始化PID，防止速度突变
+                    stop_motor1();
+                    g_bldc_motor1.speed = 0;
+                    motor_pwm_s = 0;
+                    g_bldc_motor1.pwm_duty = 0;
+                    bldc_init(168000/18-1,0);
+                    bldc_ctrl(MOTOR_1,Dir.valueint,0);
+                    g_bldc_motor1.dir = Dir.valueint;
+                }
+                if(g_bldc_motor1.dir == CW)
+                    g_speed_pid.SetPoint = Speed.valueint;
+                else
+                    g_speed_pid.SetPoint = -Speed.valueint;
+                start_motor1();
+            }
+            str = cJSON_Print(cJSON_Buf);
+            rt_kprintf("%s\r\n",str);
+        }
+        /*释放内存*/
+        cJSON_Delete(cJSON_Buf);
+        rt_free(dynamic_buf);
+    }
+}
+

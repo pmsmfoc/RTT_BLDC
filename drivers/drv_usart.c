@@ -668,6 +668,7 @@ static void uart_isr(struct rt_serial_device *serial)
 }
 
 #ifdef RT_SERIAL_USING_DMA
+#if 0
 static void dma_isr(struct rt_serial_device *serial)
 {
     struct stm32_uart *uart;
@@ -699,6 +700,7 @@ static void dma_isr(struct rt_serial_device *serial)
         }
     }
 }
+#endif
 #endif
 
 #if defined(BSP_USING_UART1)
@@ -1165,10 +1167,10 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
   */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-    struct stm32_uart *uart;
+    //struct stm32_uart *uart;
     RT_ASSERT(huart != NULL);
-    uart = (struct stm32_uart *)huart;
-    dma_isr(&uart->serial);
+    //uart = (struct stm32_uart *)huart;
+    //dma_isr(&uart->serial);
 }
 
 /**
@@ -1180,10 +1182,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
   */
 void HAL_UART_RxHalfCpltCallback(UART_HandleTypeDef *huart)
 {
-    struct stm32_uart *uart;
+    //struct stm32_uart *uart;
     RT_ASSERT(huart != NULL);
-    uart = (struct stm32_uart *)huart;
-    dma_isr(&uart->serial);
+    //uart = (struct stm32_uart *)huart;
+    //dma_isr(&uart->serial);
 }
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
