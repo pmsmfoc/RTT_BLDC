@@ -1,13 +1,3 @@
-/*
- * Copyright (c) 2006-2021, RT-Thread Development Team
- *
- * SPDX-License-Identifier: Apache-2.0
- *
- * Change Logs:
- * Date           Author       Notes
- * 2022-08-28     20688       the first version
- */
-
 #include "uart.h"
 
 rt_device_t uart4_dev = RT_NULL;
@@ -89,12 +79,21 @@ void uart4_td_entry(void *parameter)
             //Derivative = cJSON_GetObjectItem(cJSON_Buf,"d");
 
             /*获取启停标志位*/
-            RunFlag = *cJSON_GetObjectItem(cJSON_Buf, "runflag");
+            if(cJSON_GetObjectItem(cJSON_Buf, "runflag") != RT_NULL)
+                RunFlag = *cJSON_GetObjectItem(cJSON_Buf, "runflag");
+            else
+                RunFlag.valueint = 0;
             /*获取转向标志位*/
-            Dir = *cJSON_GetObjectItem(cJSON_Buf, "dir");
+            if(cJSON_GetObjectItem(cJSON_Buf, "dir") != RT_NULL)
+                Dir = *cJSON_GetObjectItem(cJSON_Buf, "dir");
+            else
+                Dir.valueint = 1;
             /*获取电机转速*/
-            Speed = *cJSON_GetObjectItem(cJSON_Buf, "speed");
-            if(Speed.valueint >= 4000)
+            if(cJSON_GetObjectItem(cJSON_Buf, "speed") != RT_NULL)
+                Speed = *cJSON_GetObjectItem(cJSON_Buf, "speed");
+            else
+                Speed.valueint = 0;
+            if(Speed.valueint > 4000)
             {
                 Speed.valueint = 4000;
             }
@@ -115,20 +114,18 @@ void uart4_td_entry(void *parameter)
                 if(Dir.valueint != g_bldc_motor1.dir)
                 {
                     /*转向发生改变*/
-                    pid_init();             //初始化PID，防止速度突变
-                    stop_motor1();
-                    g_bldc_motor1.speed = 0;
-                    motor_pwm_s = 0;
-                    g_bldc_motor1.pwm_duty = 0;
+                    bldc_speed_stop();
                     bldc_init(168000/18-1,0);
                     bldc_ctrl(MOTOR_1,Dir.valueint,0);
                     g_bldc_motor1.dir = Dir.valueint;
+                    g_bldc_motor1.run_flag = RUN;
                 }
+                start_motor1();
                 if(g_bldc_motor1.dir == CW)
                     g_speed_pid.SetPoint = Speed.valueint;
                 else
                     g_speed_pid.SetPoint = -Speed.valueint;
-                start_motor1();
+
             }
             str = cJSON_Print(cJSON_Buf);
             rt_kprintf("%s\r\n",str);

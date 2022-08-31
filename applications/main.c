@@ -52,7 +52,7 @@ int main(void)
 void motor_info(void)
 {
     rt_kprintf("motor speed is %d\r\n",g_bldc_motor1.speed);
-    rt_kprintf("motor position is %d\r\n",g_bldc_motor1.pos%6);
+    rt_kprintf("motor position is %d\r\n",g_bldc_motor1.pos);
     rt_kprintf("\r\n");
 }
 MSH_CMD_EXPORT(motor_info,show motor info);

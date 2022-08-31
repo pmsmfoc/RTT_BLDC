@@ -25,6 +25,7 @@
 #define __BLDC_H
 
 #include "stm32f4xx_hal.h"
+#include "pid.h"
 
 /***************************************** ���״̬�ṹ�� **********************************************/
 typedef struct 
@@ -137,6 +138,12 @@ float get_temp(uint16_t para);                                  /* ��ȡ�¶
 void calc_adc_val(uint16_t * p);                                /* adc��������˲����� */
 void hall_gpio_init(void);                                      /* �����ӿڳ�ʼ�� */
 uint32_t hallsensor_get_state(uint8_t motor_id);                /* ��ȡ����״̬ */
+/**
+ * @brief       清除电机状态并关闭电机
+ * @param       无
+ * @retval      无
+ */
+void bldc_speed_stop(void);
 /*  �������� */
 void m1_uhvl(void);
 void m1_uhwl(void);

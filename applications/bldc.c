@@ -24,7 +24,6 @@
  
 #include "bldc.h"
 #include "bldc_tim.h"
-#include "adc.h"
 #include "math.h"
 
 _bldc_obj g_bldc_motor1 = {STOP,0,0,CCW,0,0,0,0,0,0};   /* ����ṹ�� */
@@ -289,68 +288,18 @@ uint8_t uemf_edge(uint8_t val)
     }
     return 2;
 }
-
-/*************************************    �ڶ�����    ��ѹ�����¶Ȳɼ�    **********************************************/
-/*
-    Rt = Rp *exp(B*(1/T1-1/T2))
-
-    Rt ������������T1�¶��µ���ֵ��
-    Rp������������T2�����µı����ֵ��
-    exp��e��n�η���e����Ȼ������������Ȼ�����ĵ��������Ƶ��� 2.7182818��
-    Bֵ�������������Ҫ�������̳����õ�����������BֵΪ3380��
-    ����T1��T2ָ���ǿ������¶ȣ�T2�ǳ���25�棬��(273.15+25)K
-    T1����������¶�
-*/
-const float Rp = 10000.0f;          /* 10K */
-const float T2 = (273.15f + 25.0f); /* T2 */
-const float Bx = 3380.0f;           /* B */
-const float Ka = 273.15f;
-
 /**
- * @brief       �����¶�ֵ
- * @param       para: �¶Ȳɼ���ӦADCͨ����ֵ�����˲���
- * @note        �����¶ȷ�Ϊ������
-                1.����ADC�ɼ�����ֵ���㵱ǰ��Ӧ��Rt
-                2.����Rt�����Ӧ���¶�ֵ
- * @retval      �¶�ֵ
+ * @brief       清除电机状态并关闭电机
+ * @param       无
+ * @retval      无
  */
-float get_temp(uint16_t para)
+void bldc_speed_stop(void)
 {
-    float Rt;
-    float temp;
-    Rt = 3.3f / (para * 3.3f / 4096.0f / 4700.0f) - 4700.0f;
-    /* like this R=5000, T2=273.15+25,B=3470, RT=5000*EXP(3470*(1/T1-1/(273.15+25)) */
-    temp = Rt / Rp;
-    temp = log(temp);       /* ln(Rt/Rp) */
-    temp /= Bx;             /* ln(Rt/Rp)/B */
-    temp += (1.0f / T2);
-    temp = 1.0f / (temp);
-    temp -= Ka;
-    return temp;
+    pid_init();                     /* 重新初始化PID，防止积分过大失控 */
+    g_bldc_motor1.run_flag = STOP;  /* 标记停机 */
+    stop_motor1();                  /* 停机 */
+    g_bldc_motor1.speed = 0;
+    motor_pwm_s = 0;
+    g_bldc_motor1.pwm_duty = 0;
 }
 
-extern uint16_t g_adc_value[ADC_CH_NUM * ADC_COLL];
-
-/**
- * @brief       ����ADC��ƽ��ֵ���˲���
- * @param       * p �����ADCֵ��ָ���ַ
- * @note        �˺����Ե�ѹ���¶ȡ�������Ӧ��ADCֵ�����˲�
- * @retval      ��
- */
-void calc_adc_val(uint16_t * p)
-{
-    uint32_t temp[ADC_CH_NUM] = {0,0,0};             /* ����һ���������� */
-    int i,j;                                         /* ѭ���ɼ�ADC_COLL���� */
-    for(i=0;i<ADC_COLL;i++)                          /* ����ADCͨ����ѭ����ȡ�����ۼ� */
-    {
-        for(j=0;j<ADC_CH_NUM;j++)                    /* ���ɼ�����ADCֵ����ͨ�������ۼ� */
-        {
-            temp[j] += g_adc_value[j+i*ADC_CH_NUM];
-        }
-    }
-    for(j=0;j<ADC_CH_NUM;j++)
-    {
-        temp[j] /= ADC_COLL;                         /* ��ȡƽ��ֵ */
-        p[j] = temp[j];                              /* �浽*p */
-    }
-}

@@ -26,7 +26,6 @@
 #include "bldc_tim.h"
 #include "bldc.h"
 #include "pid.h"
-#include "adc.h"
 /******************************************************************************************/
 /* ��ʱ�����þ�� ���� */
 
@@ -206,14 +205,14 @@ void BTIM_TIMX_INT_IRQHandler(void)
 int32_t temp_pwm1 = 0.0;                    /* ���PID����������ֵ */
 int32_t motor_pwm_s = 0;                    /* ���һ���˲�������� */
 
-#define ADC_AMP_OFFSET_TIMES 50             /* ͣ��״̬���������ADC�ɼ����� */
-uint16_t adc_amp_offset[3][ADC_AMP_OFFSET_TIMES+1];
-uint8_t adc_amp_offset_p = 0;
-int16_t adc_amp[3];
+//#define ADC_AMP_OFFSET_TIMES 50             /* ͣ��״̬���������ADC�ɼ����� */
+//uint16_t adc_amp_offset[3][ADC_AMP_OFFSET_TIMES+1];
+//uint8_t adc_amp_offset_p = 0;
+//int16_t adc_amp[3];
 
-volatile uint16_t adc_val_m1[ADC_CH_NUM];   /* ADC���ݻ����� */
-int16_t adc_amp_un[3];
-float  adc_amp_bus = 0.0f;
+//volatile uint16_t adc_val_m1[ADC_CH_NUM];   /* ADC���ݻ����� */
+//int16_t adc_amp_un[3];
+//float  adc_amp_bus = 0.0f;
 /**
  * @brief       ��ʱ���жϻص�
  * @param       ��
@@ -221,9 +220,9 @@ float  adc_amp_bus = 0.0f;
  */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-    uint8_t i;
+    //uint8_t i;
     uint8_t bldc_dir=0;
-    static uint8_t times_count=0;           /* ��ʱ��ʱ���¼ */
+    //static uint8_t times_count=0;           /* ��ʱ��ʱ���¼ */
     int16_t temp_speed=0;                   /* ��ʱ�ٶȴ洢 */
     if(htim->Instance == ATIM_TIMX_PWM)     /* 55us */
     {
@@ -278,7 +277,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
                     g_bldc_motor1.speed = 0;        /* ��ʱ���� �ж�Ϊֹͣ �ٶ�Ϊ0 */
                 }
             }
-            /******************************* λ�ü�¼ *******************************/
+            /******************************* 位置记录*******************************/
             if(g_bldc_motor1.step_last != g_bldc_motor1.step_sta)
             {
                 bldc_dir = check_hall_dir(&g_bldc_motor1);
@@ -292,7 +291,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
                 }
                 g_bldc_motor1.step_last = g_bldc_motor1.step_sta;
             }
-            /******************************* PID���� *******************************/
+            /******************************* PID控制*******************************/
                 temp_pwm1 = increment_pid_ctrl(&g_speed_pid,g_bldc_motor1.speed);   /* PID�����㷨���������ֵ */
                 FirstOrderRC_LPF(motor_pwm_s,temp_pwm1,0.085);                      /* һ���˲� */
                 if(motor_pwm_s < 0)                                                 /* �ж�����ֵ */
@@ -303,67 +302,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
                 {
                    g_bldc_motor1.pwm_duty = motor_pwm_s;
                 }
-            /******************************* ����������� *******************************/
-            for(i=0; i<3; i++)
-            {
-                adc_val_m1[i] = g_adc_val[i+2];
-                adc_amp[i] = adc_val_m1[i] - adc_amp_offset[i][ADC_AMP_OFFSET_TIMES];  /* �˶�״̬ADCֵ - ͣ��״̬ADCֵ = ʵ������ADCֵ */
-                
-                if(adc_amp[i]>=0)                                                      /* ȥ�����綯������ĸ��������� */
-                 adc_amp_un[i] = adc_amp[i];
-            }
-            /* ����ĸ�ߵ�����ĸ�ߵ���Ϊ���������п��ض����������֮�ͣ�*/
-            if(g_bldc_motor1.step_sta == 0x05)
-            {
-                adc_amp_bus= (adc_amp_un[0]+ adc_amp_un[1])*ADC2CURT;/* UV */
-            }
-            else if(g_bldc_motor1.step_sta== 0x01)
-            {
-                adc_amp_bus= (adc_amp_un[0]+ adc_amp_un[2])*ADC2CURT;/* UW */
-            }
-            else if(g_bldc_motor1.step_sta== 0x03)
-            {
-                adc_amp_bus= (adc_amp_un[1]+ adc_amp_un[2])*ADC2CURT;/* VW */
-            }
-            else if(g_bldc_motor1.step_sta== 0x02)
-            {
-                adc_amp_bus= (adc_amp_un[0]+ adc_amp_un[1])*ADC2CURT;/* UV */
-            }
-            else if(g_bldc_motor1.step_sta == 0x06)
-            {
-                adc_amp_bus= (adc_amp_un[0]+ adc_amp_un[2])*ADC2CURT;/* WU */
-            }
-            else if(g_bldc_motor1.step_sta == 0x04)
-            {
-                adc_amp_bus= (adc_amp_un[2]+ adc_amp_un[1])*ADC2CURT;/* WV */
-            }
-        }
-    }
-    else if(htim->Instance == TIM6)
-    {
-        /******************************* �ɼ����ͣ��״̬�µ�ƫ�õ�ѹ *******************************/
-        times_count++;
-        if(g_bldc_motor1.run_flag == STOP)
-        {
-            uint8_t i;
-            uint32_t avg[3] = {0,0,0};
-            adc_amp_offset[0][adc_amp_offset_p] = g_adc_val[2];     /* ��ȡ���ͣ��״̬�µ�������� */
-            adc_amp_offset[1][adc_amp_offset_p] = g_adc_val[3];
-            adc_amp_offset[2][adc_amp_offset_p] = g_adc_val[4];
-
-            adc_amp_offset_p ++;
-            NUM_CLEAR(adc_amp_offset_p,ADC_AMP_OFFSET_TIMES);
-            for(i=0; i<ADC_AMP_OFFSET_TIMES; i++)
-            {
-                avg[0] += adc_amp_offset[0][i];                     /* ������ֵ�ۼ� */
-                avg[1] += adc_amp_offset[1][i];
-                avg[2] += adc_amp_offset[2][i];
-            }
-            for(i=0; i<3; i++)
-            {
-                avg[i] /= ADC_AMP_OFFSET_TIMES;                     /* ȡƽ�� */
-                adc_amp_offset[i][ADC_AMP_OFFSET_TIMES] = avg[i];   /* ��ֵ */
-            }
         }
     }
 }
