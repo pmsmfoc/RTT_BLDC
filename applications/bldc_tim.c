@@ -205,14 +205,6 @@ void BTIM_TIMX_INT_IRQHandler(void)
 int32_t temp_pwm1 = 0.0;                    /* ���PID����������ֵ */
 int32_t motor_pwm_s = 0;                    /* ���һ���˲�������� */
 
-//#define ADC_AMP_OFFSET_TIMES 50             /* ͣ��״̬���������ADC�ɼ����� */
-//uint16_t adc_amp_offset[3][ADC_AMP_OFFSET_TIMES+1];
-//uint8_t adc_amp_offset_p = 0;
-//int16_t adc_amp[3];
-
-//volatile uint16_t adc_val_m1[ADC_CH_NUM];   /* ADC���ݻ����� */
-//int16_t adc_amp_un[3];
-//float  adc_amp_bus = 0.0f;
 /**
  * @brief       ��ʱ���жϻص�
  * @param       ��
@@ -220,13 +212,11 @@ int32_t motor_pwm_s = 0;                    /* ���һ���˲����
  */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-    //uint8_t i;
     uint8_t bldc_dir=0;
-    //static uint8_t times_count=0;           /* ��ʱ��ʱ���¼ */
-    int16_t temp_speed=0;                   /* ��ʱ�ٶȴ洢 */
+    int16_t temp_speed=0;                   /* 临时速度存贮 */
     if(htim->Instance == ATIM_TIMX_PWM)     /* 55us */
     {
-        /******************************* �������� *******************************/
+        /*******************************六步换向*******************************/
         if(g_bldc_motor1.run_flag == RUN)
         {
             if(g_bldc_motor1.dir == CW)
@@ -239,42 +229,42 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
             }
             if((g_bldc_motor1.step_sta <= 6)&&(g_bldc_motor1.step_sta >= 1))
             {
-                pfunclist_m1[g_bldc_motor1.step_sta-1]();
+                pfunclist_m1[g_bldc_motor1.step_sta-1]();/*直接驱动换向的函数*/
             }
-            else    /* ���������󡢽Ӵ��������Ͽ������ */
+            else    /*编码器错误、接触不良、断开等情况*/
             {
                 stop_motor1();
                 g_bldc_motor1.run_flag = STOP;
             }
             
-            /******************************* �ٶȼ��� *******************************/
-            g_bldc_motor1.count_j++;                /* �����ٶ�ר�ü���ֵ */
-            g_bldc_motor1.hall_sta_edge = uemf_edge(g_bldc_motor1.hall_single_sta);/* ��ⵥ�������źŵı仯 */
-            if(g_bldc_motor1.hall_sta_edge == 0)    /* ͳ�Ƶ��������źŵĸߵ�ƽʱ�䣬��ֻ��һ�Լ���ʱ����תһȦΪһ���������塣һ��һ����Ӽ���תһȦ������ʱ��*/
+            /*******************************速度计算*******************************/
+            g_bldc_motor1.count_j++;                /*计算速度专用计数值*/
+            g_bldc_motor1.hall_sta_edge = uemf_edge(g_bldc_motor1.hall_single_sta);/*检测单个霍尔信号的变化*/
+            if(g_bldc_motor1.hall_sta_edge == 0)    /*统计单个霍尔信号的高电平时间，当只有一对级的时候，旋转一圈为一个完整脉冲。一高一低相加即旋转一圈所花的时间*/
             {
-                /*�����ٶ�*/
+                /*计算速度*/
                 if(g_bldc_motor1.dir == CW)
                     temp_speed = (SPEED_COEFF/g_bldc_motor1.count_j);
                 else
                     temp_speed = -(SPEED_COEFF/g_bldc_motor1.count_j);
-                FirstOrderRC_LPF(g_bldc_motor1.speed,temp_speed,0.2379f);   /* һ���˲� */
+                FirstOrderRC_LPF(g_bldc_motor1.speed,temp_speed,0.2379f);   /*一阶滤波*/
                 g_bldc_motor1.no_single = 0;
                 g_bldc_motor1.count_j = 0;
             }
-            if(g_bldc_motor1.hall_sta_edge == 1)    /* ���ɼ����½���ʱ������0 */
+            if(g_bldc_motor1.hall_sta_edge == 1)    /* 当采集到下降沿是数据清0 */
             {
                 g_bldc_motor1.no_single = 0;
                 g_bldc_motor1.count_j = 0;
             }
-            if(g_bldc_motor1.hall_sta_edge == 2)    /* ����ֵһֱ�������δ���� */
+            if(g_bldc_motor1.hall_sta_edge == 2)    /* 霍尔值一直不变代表未换向 */
             {
-                g_bldc_motor1.no_single++;          /* ������ʱ���ۼ� ��ʱ���ж��ٶ�Ϊ0 */
+                g_bldc_motor1.no_single++;          /* 不换相和时间累计 超时则判定速度为0 */
                 
                 if(g_bldc_motor1.no_single > 15000)
                 {
                     
                     g_bldc_motor1.no_single = 0;
-                    g_bldc_motor1.speed = 0;        /* ��ʱ���� �ж�Ϊֹͣ �ٶ�Ϊ0 */
+                    g_bldc_motor1.speed = 0;        /* 超时换向 判定为停止 速度为0 */
                 }
             }
             /******************************* 位置记录*******************************/

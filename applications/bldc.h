@@ -113,7 +113,7 @@ extern _bldc_obj g_bldc_motor1;
 #define RUN                         (1)                 /* ����˶���־ */
 #define STOP                        (0)                 /* ���ͣ����־ */
 
-#define SPEED_COEFF      (uint32_t)((18000/4)*60)       /* ��תһȦ�仯4���źţ�2�Լ����������ԣ�NSNS��4����*/
+#define SPEED_COEFF      (uint32_t)((18000/4)*60)       /*旋转一圈变化4个信号，2对级永磁体特性，NSNS共4级数*/
 
 #define ADC2CURT    (float)(3.3f/4.096f/0.12f)
 #define ADC2VBUS    (float)(3.3f*25/4096)

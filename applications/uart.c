@@ -60,7 +60,7 @@ void uart4_td_entry(void *parameter)
         /*读取DMA接收到的数据*/
         len = rt_device_read(uart4_dev,0,buffer,rx_len);
         /*申请内存*/
-        dynamic_buf = rt_malloc(sizeof(char)*len);
+        dynamic_buf = rt_malloc(sizeof(char) * len);
         /*copy数据到申请的内存中*/
         memcpy(dynamic_buf,buffer,len);
         /*解析*/
@@ -77,6 +77,7 @@ void uart4_td_entry(void *parameter)
             //Integral = cJSON_GetObjectItem(cJSON_Buf,"i");
             /*获取微分系数*/
             //Derivative = cJSON_GetObjectItem(cJSON_Buf,"d");
+
 
             /*获取启停标志位*/
             if(cJSON_GetObjectItem(cJSON_Buf, "runflag") != RT_NULL)
@@ -101,12 +102,8 @@ void uart4_td_entry(void *parameter)
             g_bldc_motor1.run_flag = RunFlag.valueint;
             if(g_bldc_motor1.run_flag != RUN)
             {
-                /*清楚电机状态并关闭电机*/
-                pid_init();
-                stop_motor1();
-                g_bldc_motor1.speed = 0;
-                motor_pwm_s = 0;
-                g_bldc_motor1.pwm_duty = 0;
+                /*清除电机状态并关闭电机*/
+                bldc_speed_stop();
             }
             else
             {
@@ -115,9 +112,13 @@ void uart4_td_entry(void *parameter)
                 {
                     /*转向发生改变*/
                     bldc_speed_stop();
-                    bldc_init(168000/18-1,0);
-                    bldc_ctrl(MOTOR_1,Dir.valueint,0);
                     g_bldc_motor1.dir = Dir.valueint;
+                    g_bldc_motor1.run_flag = RUN;
+                }
+                /*电机转速小于100rad/min*/
+                if(Speed.valueint <= 100)
+                {
+                    bldc_speed_stop();
                     g_bldc_motor1.run_flag = RUN;
                 }
                 start_motor1();
@@ -125,7 +126,6 @@ void uart4_td_entry(void *parameter)
                     g_speed_pid.SetPoint = Speed.valueint;
                 else
                     g_speed_pid.SetPoint = -Speed.valueint;
-
             }
             str = cJSON_Print(cJSON_Buf);
             rt_kprintf("%s\r\n",str);

@@ -31,7 +31,7 @@ int main(void)
 
 //    g_bldc_motor1.dir = CCW;
 //    g_bldc_motor1.run_flag = RUN;
-//    start_motor1();
+//    start_motor1();//开启pwm输出
 //    g_speed_pid.SetPoint = -1000;
 
 
